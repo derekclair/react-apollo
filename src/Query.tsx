@@ -255,7 +255,7 @@ export default class Query<TData, TVariables extends OperationVariables> extends
       ...props,
       displayName,
       context: props.context || {},
-      metadata: { reactComponent: { displayName }},
+      metadata: { reactComponent: { displayName } },
     };
   }
 
