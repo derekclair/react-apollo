@@ -50,7 +50,7 @@ function observableQueryFields<TData, TVariables>(
   return fields as ObservableQueryFields<TData, TVariables>;
 }
 
-export interface QueryResult<TData = any, TVariables = OperationVariables>
+export interface QueryResult<TData, TVariables extends OperationVariables>
   extends ObservableQueryFields<TData, TVariables> {
   client: ApolloClient<any>;
   // we create an empty object to make checking for data
@@ -61,13 +61,14 @@ export interface QueryResult<TData = any, TVariables = OperationVariables>
   // I'm aware of. So intead we enforce checking for data
   // like so result.data!.user. This tells TS to use TData
   // XXX is there a better way to do this?
-  data: TData | undefined;
+  data: TData;
   error?: ApolloError;
   loading: boolean;
   networkStatus: NetworkStatus;
 }
 
-export interface QueryProps<TData = any, TVariables = OperationVariables> extends QueryOpts<TVariables> {
+export interface QueryProps<TData extends unknown, TVariables = OperationVariables>
+  extends QueryOpts<TVariables> {
   children: (result: QueryResult<TData, TVariables>) => React.ReactNode;
   query: DocumentNode;
   displayName?: string;
@@ -82,7 +83,7 @@ export interface QueryContext {
   renderPromises?: RenderPromises;
 }
 
-export default class Query<TData = any, TVariables = OperationVariables> extends React.Component<
+export default class Query<TData, TVariables extends OperationVariables> extends React.Component<
   QueryProps<TData, TVariables>
 > {
   static contextTypes = {
@@ -405,10 +406,10 @@ export default class Query<TData = any, TVariables = OperationVariables> extends
     } else if (onError && !loading && error) {
       onError(error);
     }
-  }
+  };
 
-  private getQueryResult = (): QueryResult<TData, TVariables> => {
-    let data = { data: Object.create(null) as TData } as any;
+  private getQueryResult = <T extends TData>(): QueryResult<T, TVariables> => {
+    let data = ({ data: Object.create(null) } as unknown) as QueryResult<T, TVariables>;
     // Attach bound methods
     Object.assign(data, observableQueryFields(this.queryObservable!));
 
@@ -418,7 +419,7 @@ export default class Query<TData = any, TVariables = OperationVariables> extends
     if (this.props.skip) {
       data = {
         ...data,
-        data: undefined,
+        data: ({} as T),
         error: undefined,
         loading: false,
       };
@@ -440,7 +441,7 @@ export default class Query<TData = any, TVariables = OperationVariables> extends
         Object.assign(data.data, this.previousData, currentResult.data);
       } else if (error) {
         Object.assign(data, {
-          data: (this.queryObservable!.getLastResult() || {}).data,
+          data: this.queryObservable!.getLastResult().data,
         });
       } else {
         const { fetchPolicy } = this.queryObservable!.options;
@@ -489,9 +490,9 @@ export default class Query<TData = any, TVariables = OperationVariables> extends
     // always hit the network with refetch, since the components data will be
     // updated and a network request is not currently active.
     if (!this.querySubscription) {
-      const oldRefetch = (data as QueryControls<TData, TVariables>).refetch;
+      const oldRefetch = data.refetch;
 
-      (data as QueryControls<TData, TVariables>).refetch = args => {
+      data.refetch = args => {
         if (this.querySubscription) {
           return oldRefetch(args);
         } else {
